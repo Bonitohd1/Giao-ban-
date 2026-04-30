@@ -1,7 +1,7 @@
-# Hướng dẫn Deploy Web App v2.3 — Liên kết chéo KT ↔ VT ↔ HS
+# Hướng dẫn Deploy Web App v2.3 — Liên kết chéo KT ↔ VT ↔ HS ↔ Kho 5A/5B
 
-> Mục tiêu v2.3: nhìn thấy **móc nối** giữa các tổ.
-> Máy hỏng → vật tư đang thiếu → gói thầu đang vướng. Một cú click ra đủ chuỗi.
+> Mục tiêu v2.3: nhìn thấy **móc nối** giữa các tổ — bao gồm cả Kho.
+> Máy hỏng → vật tư đang mua sắm → kho còn tồn không → khoa nào đang xếp hàng → gói thầu đang vướng. Một cú click ra đủ chuỗi.
 
 ---
 
@@ -54,10 +54,35 @@ Mỗi mã là **link click** → mở **Modal 360°** chi tiết entity đó.
 
 Click bất cứ mã nào (KT, VT, HS) → mở popup 3 cột:
 - **Cột 1 (KT)**: máy nào đang gặp sự cố
-- **Cột 2 (VT)**: vật tư liên quan + còn đáp ứng được bao nhiêu ngày
+- **Cột 2 (VT)**: vật tư liên quan — **mỗi VT card kèm thẻ 📦 Kho** (Tồn / DOH / trạng thái cảnh báo + danh sách 5B các khoa đang xếp hàng)
 - **Cột 3 (HS)**: hồ sơ thầu đang vướng
 
 Ngoài ra có nút "Mở dòng trong Sheet" deep-link tới đúng range để sửa nhanh.
+
+### 4b. Kho 5A/5B inline (NEW)
+
+Mỗi card vật tư trong modal đều có thẻ Kho hiện ngay bên dưới:
+
+```
+🧪 Khí lạnh R134a — Đang thẩm định (mua sắm)
+📦 Kho: [ĐỎ]  Tồn: 0 · DOH: 0 ngày · 3 khoa đang chờ
+        → Đề xuất xử lý: Cấp gấp từ kho TW
+        Đề xuất 5B (3 chưa xong / 5 tổng):
+          Khoa CĐHA      5L · 15/04 · Chờ thầu
+          Khoa Hồi sức   3L · 20/04 · Chờ thầu
+          Khoa CC        2L · 22/04 · Đang xử lý
+```
+
+Match VT ↔ Kho theo: **Mã VTTH** trùng → **Tên VTTH** trùng → fuzzy theo từ khóa tên.
+
+### 4c. Severity boost theo kho
+
+Trong tab 🔗 Liên kết, severity của 1 chuỗi được + thêm điểm khi:
+- Kho 5A trạng thái ĐỎ → **+2**, VÀNG → **+1**
+- DOH < 7 ngày → **+1**
+- ≥ 3 khoa đang xếp hàng (5B chưa cấp đủ) → **+2**, ≥ 1 khoa → **+1**
+
+→ Máy hỏng + vật tư hết tồn + nhiều khoa chờ + gói thầu vướng = chuỗi NÓNG nhất, lên đầu danh sách.
 
 ### 5. Search bar global trên header
 
@@ -145,9 +170,13 @@ Mở Web App URL → bấm tab **🔗 Liên kết**:
 
 - [ ] Thấy danh sách chuỗi (kể cả dòng mẫu từ MAP_LIENKET).
 - [ ] Click vào mã KT001 / VT001 → modal 360° mở, có 3 cột.
+- [ ] **Trong cột VT của modal: thấy thẻ 📦 Kho có trạng thái Tồn/DOH/cảnh báo + danh sách 5B các khoa đang chờ.**
+- [ ] **Trên các chain row của tab Liên kết: thấy mini badge 📦 [ĐỎ/VÀNG/XANH] + "X khoa chờ" bên cạnh VT.**
 - [ ] Trong modal, click **Mở dòng trong Sheet** → tab Sheet mở đúng dòng.
 - [ ] Gõ vào ô search: tên một máy / khoa → dropdown ra kết quả → click → modal mở.
 - [ ] Tab cũ (KT, HS, VT, Kho, Khoa) vẫn chạy bình thường — KHÔNG vỡ.
+
+Nếu thẻ Kho hiện "không khớp 5A": Tên VTTH trong tab "Nhóm vật tư tiêu hao - hóa chất" KHÔNG match với 5A. Sửa cho trùng tên (hoặc đảm bảo cùng Mã VTTH ở cả hai tab).
 
 Nếu Liên kết tab trống: chạy lại bootstrap, hoặc kiểm tra MAP_LIENKET có dữ liệu không.
 

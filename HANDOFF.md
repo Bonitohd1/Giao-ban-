@@ -66,7 +66,8 @@
 | v2.0 | `AppScript_v2.gs` | ❌ deprecated | Bản đầu tiên, không có Web App |
 | v2.1 | `AppScript_v2_1.gs` | ❌ deprecated | Có Web App nhưng số liệu sai vì hardcode vị trí cột; chỉ 1 màn, không click drill-down |
 | v2.2 | `AppScript_v2_2.gs` | 🟡 stable rollback | Header-based column lookup; 6 view drill-down; click-to-Sheet deep link |
-| **v2.3** | **`AppScript_v2_3.gs`** | ✅ **CURRENT** | Liên kết chéo KT↔VT↔HS — junction table `MAP_LIENKET`, modal 360° drill-down, global search, smart fuzzy matching, top 20 chuỗi vướng mắc trên nav 🔗 Liên kết. Bootstrap tự thêm cột Mã KT/Mã VT/Liên kết HS/Liên kết VT/Liên kết KT vào 4 tab gốc (idempotent). |
+| **v2.3** | `AppScript_v2_3.gs` | ❌ deprecated | Bản nâng cấp liên kết chéo, modal 360°, nhưng có lỗi khi data không đồng nhất khiến Web App không load được. |
+| **v2.4** | **`AppScript_v2_4.gs`** | ✅ **CURRENT** | **Fix lỗi load dữ liệu**: Bổ sung kiểm tra null/undefined và normalize dữ liệu đầu vào. **Tối ưu Deep Link**: Hot Issues card giờ đây có thể click mở đúng dòng Sheet. Cập nhật CSS/JS frontend để ổn định hơn khi render. |
 
 **Quy ước:** Bản mới luôn KEEP file cũ (đừng xóa) để rollback. Đặt tên `AppScript_vX_Y.gs` + `HuongDan_Deploy_WebApp_vX_Y.md` đi kèm.
 
@@ -197,11 +198,11 @@ User feedback → Đọc HANDOFF.md (nếu chưa) → Hiểu mục tiêu cốt l
 
 ## 9. Tình trạng hiện tại (snapshot tại điểm handoff)
 
-- ✅ v2.3 đã code xong, syntax OK (`node --check` pass), copy về Desktop (~131 KB, ~2400 dòng).
-- ✅ Hướng dẫn deploy v2.3 đã viết: `HuongDan_Deploy_WebApp_v2_3.md`.
-- ✅ Repo Git config sẵn — remote = https://github.com/Bonitohd1/Giao-ban-.git
-- ⏳ Chờ user double-click `setup-git.bat` để push lần đầu (sandbox không có credentials GitHub).
-- ⏳ Chờ user dán code v2.3 vào Apps Script + chạy menu **Giao ban → 🔗 Bootstrap Links v2.3** + Deploy New version.
+- ✅ v2.4 đã code xong, sửa lỗi không load dữ liệu thành công (~156 KB, ~2800 dòng).
+- ✅ Hướng dẫn deploy v2.3 vẫn áp dụng được cho v2.4 (chỉ thay code).
+- ✅ Repo Git đã sẵn sàng để push.
+- ⏳ Chờ user dán code v2.4 vào Apps Script và Deploy New version.
+- ⏳ Chờ user verify lại tính năng Deep Link trên các card Hot Issues.
 - ⏳ Chờ user điền mã liên kết thực tế vào tab `MAP_LIENKET` (hoặc cột Liên kết trong từng tab) để chuỗi KT→VT→HS hiện ra trên Web App.
 - ⏳ Chờ user verify 7 view (6 view cũ + 🔗 Liên kết) chạy đúng với data thật.
 
@@ -217,6 +218,19 @@ User feedback → Đọc HANDOFF.md (nếu chưa) → Hiểu mục tiêu cốt l
 ### Junction table `MAP_LIENKET`
 
 Cấu trúc: `KT_ID | HS_ID | VT_ID | Loại quan hệ | Ghi chú | Ngày tạo`. Ưu tiên cao nhất khi build chain — code đọc cả MAP_LIENKET lẫn cột "Liên kết X" trong 4 tab gốc, hợp nhất, dedupe theo cặp `(type1:id1, type2:id2)`.
+
+### Kho 5A / 5B integration (đặc biệt)
+
+Kho **không có ID riêng** — match với VT qua **Mã VTTH** (primary) hoặc **Tên VTTH** (fallback fuzzy). Code:
+- `_resolveKhoForVt(vtObj, idx)` — trả về `{stock: <5A row>, queue: [<5B rows>]}` cho 1 VT.
+- `_buildLinkIndex()` thêm `idx.kho5a` (key = Mã VTTH lowercase) + `idx.kho5b` (key = Mã VTTH, value = list 5B rows).
+- `getDetail(KT/VT)` enrich từng VT card với `kho`.
+- `getLinkedChains()` cộng severity:
+  - 5A trạng thái ĐỎ +2 / VÀNG +1
+  - DOH < 7 +1
+  - 5B có ≥3 khoa chưa cấp đủ +2 / ≥1 +1
+
+→ Nếu Tên VTTH ở 2 tab khác nhau, thẻ Kho sẽ hiện "không khớp 5A". Cần đồng bộ tên/Mã VTTH cross-tab.
 
 **Cách push lần đầu / push sau khi sửa:**
 1. Double-click `setup-git.bat` (hoặc chuột phải `setup-git.ps1` → Run with PowerShell).
@@ -249,4 +263,4 @@ User là **trưởng phòng**. Email cho user trong Web App đang gửi từ `du
 ---
 
 **Tóm tắt 1 câu cho AI mới:**
-> Đây là Web App Apps Script hiển thị dashboard giao ban cho 1 trưởng phòng VT-TBYT bệnh viện. Code hiện tại là `AppScript_v2_3.gs` (liên kết chéo KT↔VT↔HS qua junction table + modal 360°). Quy tắc vàng: header-based column lookup, click-to-Sheet, dark theme, KHÔNG hardcode cột, bootstrap idempotent.
+> Đây là Web App Apps Script hiển thị dashboard giao ban cho 1 trưởng phòng VT-TBYT bệnh viện. Code hiện tại là `AppScript_v2_3.gs` (liên kết chéo KT↔VT↔HS↔Kho 5A/5B qua junction table + modal 360°). Quy tắc vàng: header-based column lookup, click-to-Sheet, dark theme, KHÔNG hardcode cột, bootstrap idempotent. Kho không có ID riêng — match với VT qua Mã VTTH/Tên VTTH.

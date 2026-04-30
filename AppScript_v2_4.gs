@@ -724,7 +724,10 @@ function _topHot(kt, hs, kho5a, limit) {
         badge: tre > 0 ? "Trễ " + tre + "n" : tinh,
         severity: 80 + Math.min(tre, 20),
         sheetRow: i + 2,
-        gid: kt.gid
+        gid: kt.gid,
+        linkType: "KT",
+        linkId: (row[cTen] || "").toString(),
+        linkTab: TAB.KY_THUAT
       });
     });
   }
@@ -748,7 +751,9 @@ function _topHot(kt, hs, kho5a, limit) {
         badge: tt,
         severity: 95,
         sheetRow: i + 2,
-        gid: kho5a.gid
+        gid: kho5a.gid,
+        linkTab: TAB.KHO_5A,
+        linkTitle: (row[cTen] || "Hàng kho 5A").toString()
       });
     });
   }
@@ -777,7 +782,10 @@ function _topHot(kt, hs, kho5a, limit) {
         badge: tre > 0 ? "Trễ " + tre + "n" : (cao ? "CAO" : "Vướng"),
         severity: 70 + Math.min(tre, 25),
         sheetRow: i + 2,
-        gid: hs.gid
+        gid: hs.gid,
+        linkType: "HS",
+        linkId: ((row[cMa] || row[cND]) || "").toString(),
+        linkTab: TAB.HO_SO
       });
     });
   }
@@ -1108,9 +1116,52 @@ function getKho() {
 }
 
 // ============================================================================
+//  API ENDPOINT — getRowDetail (v2.4) — đọc 1 hàng raw cho generic row modal
+// ============================================================================
+function getRowDetail(tabName, rowIdx) {
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sh = ss.getSheetByName(tabName);
+    if (!sh) return { error: "Không tìm thấy tab: " + tabName };
+    const r = parseInt(rowIdx, 10);
+    if (!r || r < 2) return { error: "Row index không hợp lệ: " + rowIdx };
+    const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    const last = sh.getLastRow();
+    if (r > last) return { error: "Hàng " + r + " vượt quá " + last };
+    const row = sh.getRange(r, 1, 1, sh.getLastColumn()).getValues()[0];
+    const fields = [];
+    for (let i = 0; i < headers.length; i++) {
+      const h = (headers[i] || "").toString().trim();
+      if (!h) continue;
+      let v = row[i];
+      if (v instanceof Date) v = Utilities.formatDate(v, TIMEZONE, "dd/MM/yyyy");
+      else if (v === null || v === undefined) v = "";
+      else v = v.toString();
+      fields.push({ key: h, val: v });
+    }
+    return {
+      tab: tabName,
+      rowIdx: r,
+      gid: sh.getSheetId(),
+      sheetUrl: "https://docs.google.com/spreadsheets/d/" + SHEET_ID,
+      fields: fields
+    };
+  } catch (e) {
+    return { error: "Lỗi đọc row: " + (e && e.message || e) };
+  }
+}
+
+// ============================================================================
 //  API ENDPOINT — THEO KHOA
 // ============================================================================
 function getByKhoa(khoaName) {
+  try {
+    return _getByKhoaImpl(khoaName);
+  } catch (e) {
+    return { error: "Lỗi getByKhoa: " + (e && e.message || e), khoaList: [], kt:[], hs:[], vt:[], kho:[], summary:{totalKT:0,doneKT:0,totalHS:0,doneHS:0,totalVT:0,totalKho:0} };
+  }
+}
+function _getByKhoaImpl(khoaName) {
   const kt = _readTab(TAB.KY_THUAT);
   const hs = _readTab(TAB.HO_SO);
   const vt = _readTab(TAB.VTTH);
@@ -1940,10 +1991,29 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '.chain-node .nm{color:#fff;font-size:12px;font-weight:500}\n' +
 '.chain-node .sm{color:#9CA3AF;font-size:10px;margin-top:2px}\n' +
 '.chain-node.empty{opacity:0.5;font-style:italic;color:#6B7280;cursor:default}\n' +
+/* v2.4 — generic row modal */
+'.kv-list{padding:18px;display:grid;grid-template-columns:200px 1fr;gap:8px 16px;font-size:13px}\n' +
+'.kv-list .k{color:#9CA3AF;font-weight:500;text-align:right;padding:6px 0;border-bottom:1px dashed #2D3D5C}\n' +
+'.kv-list .v{color:#fff;padding:6px 0;border-bottom:1px dashed #2D3D5C;word-break:break-word}\n' +
+'.kv-list .v.empty{color:#4B5563;font-style:italic}\n' +
+'@media (max-width:800px){.kv-list{grid-template-columns:1fr}.kv-list .k{text-align:left}}\n' +
+/* v2.4 — khoa modal (lãnh đạo dashboard cho 1 khoa) */
+'.khoa-modal-wrap{padding:18px}\n' +
+'.khoa-modal-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}\n' +
+'.khoa-modal-stat{background:#162338;border:1px solid #2D3D5C;border-radius:6px;padding:10px;text-align:center}\n' +
+'.khoa-modal-stat .k{font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.5px}\n' +
+'.khoa-modal-stat .v{font-size:24px;font-weight:700;color:#fff;margin-top:4px}\n' +
+'.khoa-modal-section{margin-top:16px;background:#162338;border:1px solid #2D3D5C;border-radius:6px}\n' +
+'.khoa-modal-section h3{padding:10px 14px;border-bottom:1px solid #2D3D5C;font-size:12px;text-transform:uppercase;color:#E5E7EB;letter-spacing:.5px;font-weight:600}\n' +
+'.khoa-modal-section h3 .count{background:#0F1B2D;color:#9CA3AF;padding:1px 8px;border-radius:8px;font-size:10px;margin-left:8px}\n' +
+'.khoa-modal-section .tbl{margin:0;border-radius:0}\n' +
+'.khoa-modal-section .empty{padding:14px;color:#6B7280;font-style:italic;font-size:12px}\n' +
+'.btn-secondary{background:#374151;color:#D1D5DB;font-size:11px;padding:5px 9px}\n' +
+'.btn-secondary:hover{background:#4B5563}\n' +
 '</style></head><body>\n' +
 '<header>\n' +
 '  <div class="brand-row">\n' +
-'    <div class="brand">DASHBOARD GIAO BAN — PHÒNG VT-TBYT<small>Bệnh viện K — 4 tổ: Kỹ thuật / Hồ sơ / Vật tư / Kho · v2.3</small></div>\n' +
+'    <div class="brand">DASHBOARD GIAO BAN — PHÒNG VT-TBYT<small>Bệnh viện K — 4 tổ: Kỹ thuật / Hồ sơ / Vật tư / Kho · v2.4</small></div>\n' +
 '    <div class="search-wrap"><input id="search" type="text" placeholder="🔍 Tìm máy / vật tư / hồ sơ…" autocomplete="off"><div id="search-results"></div></div>\n' +
 '    <div class="status-row">\n' +
 '      <span class="live"><span class="live-dot"></span>LIVE</span>\n' +
@@ -1983,6 +2053,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '<script>\n' +
 '(function(){\n' +
 'var STATE = { sheetUrl: "", currentView: "overview", overview: null, kt: null, hs: null, vt: null, kho: null, khoa: null };\n' +
+'var TAB_NAME = { KT:"Nhóm kỹ thuật", VT:"Nhóm vật tư tiêu hao- hóa chất", HS:"Nhóm Hồ sơ", KHO_5A:"5A. Tổ kho - Tồn", KHO_5B:"5B. Tổ kho - Đề xuất" };\n' +
 'function $(s,p){return (p||document).querySelector(s);} \n' +
 'function $$(s,p){return Array.from((p||document).querySelectorAll(s));}\n' +
 'function esc(s){if(s===null||s===undefined)return"";return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c];});}\n' +
@@ -2118,6 +2189,136 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 /* Close modal on Esc + click backdrop */
 'document.addEventListener("keydown",function(e){if(e.key==="Escape")$("#modal").classList.remove("show");});\n' +
 '$("#modal").onclick=function(e){if(e.target===this)this.classList.remove("show");};\n' +
+/* v2.4 — In-app generic row modal (for Kho 5A/5B & generic fallback) */
+'function openGenericRow(tab,gid,rowIdx,title){\n' +
+'  if(\!tab||\!rowIdx)return;\n' +
+'  $("#modal").classList.add("show");\n' +
+'  $("#modal-title").innerHTML="<span class=\\"badge\\" style=\\"background:#374151;color:#D1D5DB\\">📄 Hàng</span><h2>"+esc(title||tab)+"</h2>";\n' +
+'  $("#modal-body").innerHTML="<div class=\\"loading\\" style=\\"padding:40px\\">Đang tải hàng…</div>";\n' +
+'  $("#modal-actions").innerHTML="<button class=\\"btn btn-close\\" onclick=\\"document.getElementById(\\\"modal\\\").classList.remove(\\\"show\\\")\\">Đóng (Esc)</button>";\n' +
+'  $("#modal-meta").innerHTML="";\n' +
+'  google.script.run.withSuccessHandler(function(d){\n' +
+'    if(d.error){$("#modal-body").innerHTML="<div class=\\"error\\" style=\\"margin:20px\\">"+esc(d.error)+"</div>";return;}\n' +
+'    var html="<div class=\\"kv-list\\">";\n' +
+'    d.fields.forEach(function(f){\n' +
+'      var v=f.val===""?"<span class=\\"empty\\">(trống)</span>":esc(f.val);\n' +
+'      html+="<div class=\\"k\\">"+esc(f.key)+"</div><div class=\\"v\\">"+v+"</div>";\n' +
+'    });\n' +
+'    html+="</div>";\n' +
+'    $("#modal-body").innerHTML=html;\n' +
+'    var openLink=d.sheetUrl+"/edit#gid="+(d.gid||"")+"&range=A"+(d.rowIdx||"");\n' +
+'    $("#modal-actions").innerHTML="<a href=\\""+openLink+"\\" target=\\"_blank\\" class=\\"btn btn-secondary\\" title=\\"Mở Sheet để sửa\\">↗ Sửa trên Sheet</a> <button class=\\"btn btn-close\\" onclick=\\"document.getElementById(\\\"modal\\\").classList.remove(\\\"show\\\")\\">Đóng</button>";\n' +
+'    $("#modal-meta").innerHTML="<div class=\\"row-info\\"><div><strong>Tab:</strong> "+esc(d.tab)+" · <strong>Hàng:</strong> "+esc(d.rowIdx)+"</div><div><strong>Tip:</strong> Click \\"↗ Sửa trên Sheet\\" chỉ khi cần sửa nhanh.</div></div>";\n' +
+'  }).withFailureHandler(function(err){$("#modal-body").innerHTML="<div class=\\"error\\" style=\\"margin:20px\\">⚠ Lỗi tải hàng: "+esc(err && err.message || err)+"</div>";}).getRowDetail(tab,parseInt(rowIdx,10));\n' +
+'}\n' +
+/* v2.4 — In-app Khoa Detail modal (lãnh đạo 360° cho 1 khoa) */
+'function openKhoaModal(khoaName){\n' +
+'  if(\!khoaName)return;\n' +
+'  $("#modal").classList.add("show");\n' +
+'  $("#modal-title").innerHTML="<span class=\\"badge\\" style=\\"background:#0E7490;color:#A5F3FC\\">🏥 Khoa</span><h2>"+esc(khoaName)+"</h2>";\n' +
+'  $("#modal-body").innerHTML="<div class=\\"loading\\" style=\\"padding:40px\\">Đang tải toàn cảnh khoa "+esc(khoaName)+"…</div>";\n' +
+'  $("#modal-actions").innerHTML="<button class=\\"btn btn-close\\" onclick=\\"document.getElementById(\\\"modal\\\").classList.remove(\\\"show\\\")\\">Đóng (Esc)</button>";\n' +
+'  $("#modal-meta").innerHTML="";\n' +
+'  google.script.run.withSuccessHandler(function(d){\n' +
+'    if(d.error){$("#modal-body").innerHTML="<div class=\\"error\\" style=\\"margin:20px\\">"+esc(d.error)+"</div>";return;}\n' +
+'    var s=d.summary||{totalKT:0,totalHS:0,totalVT:0,totalKho:0,doneKT:0,doneHS:0};\n' +
+'    var html="<div class=\\"khoa-modal-wrap\\">";\n' +
+'    html+="<div class=\\"khoa-modal-summary\\">";\n' +
+'    html+="<div class=\\"khoa-modal-stat\\"><div class=\\"k\\">🔧 Máy hỏng</div><div class=\\"v\\" style=\\"color:"+(s.totalKT>0?"#EF4444":"#10B981")+"\\">"+s.totalKT+"</div><div style=\\"font-size:10px;color:#6B7280\\">đã xong: "+s.doneKT+"</div></div>";\n' +
+'    html+="<div class=\\"khoa-modal-stat\\"><div class=\\"k\\">📁 Hồ sơ</div><div class=\\"v\\" style=\\"color:"+(s.totalHS>0?"#F59E0B":"#10B981")+"\\">"+s.totalHS+"</div><div style=\\"font-size:10px;color:#6B7280\\">đã xong: "+s.doneHS+"</div></div>";\n' +
+'    html+="<div class=\\"khoa-modal-stat\\"><div class=\\"k\\">🧪 VT/HC</div><div class=\\"v\\">"+s.totalVT+"</div></div>";\n' +
+'    html+="<div class=\\"khoa-modal-stat\\"><div class=\\"k\\">📦 YC kho</div><div class=\\"v\\">"+s.totalKho+"</div></div>";\n' +
+'    html+="</div>";\n' +
+/* KT */
+'    html+="<div class=\\"khoa-modal-section\\"><h3>🔧 Thiết bị đang vướng <span class=\\"count\\">"+(d.kt||[]).length+"</span></h3>";\n' +
+'    if(\!(d.kt||[]).length)html+="<div class=\\"empty\\">Không có thiết bị vướng mắc.</div>";\n' +
+'    else{\n' +
+'      html+="<div class=\\"tbl-wrap\\"><table class=\\"tbl\\"><thead><tr><th>Tên máy</th><th>Tình trạng</th><th>Chi tiết</th><th>CB</th><th>Deadline</th><th>HT</th></tr></thead><tbody>";\n' +
+'      d.kt.forEach(function(r){\n' +
+'        var pill=r.tinh && r.tinh.toLowerCase().indexOf("đang sửa")>=0?"yellow":r.tinh && r.tinh.toLowerCase().indexOf("thanh lý")>=0?"gray":"blue";\n' +
+'        html+="<tr data-kt-id=\\""+esc(r.ten)+"\\" style=\\"cursor:pointer\\">";\n' +
+'        html+="<td><b>"+esc(r.ten)+"</b></td>";\n' +
+'        html+="<td><span class=\\"pill "+pill+"\\">"+esc(r.tinh||"-")+"</span></td>";\n' +
+'        html+="<td style=\\"max-width:280px;font-size:12px\\">"+esc(r.ct||"")+"</td>";\n' +
+'        html+="<td style=\\"font-size:12px\\">"+esc(r.cb||"")+"</td>";\n' +
+'        html+="<td style=\\"font-size:11px\\">"+esc(r.dl||"")+"</td>";\n' +
+'        html+="<td>"+(r.ht?"✓":"⏳")+"</td></tr>";\n' +
+'      });\n' +
+'      html+="</tbody></table></div>";\n' +
+'    }\n' +
+'    html+="</div>";\n' +
+/* HS */
+'    html+="<div class=\\"khoa-modal-section\\"><h3>📁 Gói thầu / Hồ sơ <span class=\\"count\\">"+(d.hs||[]).length+"</span></h3>";\n' +
+'    if(\!(d.hs||[]).length)html+="<div class=\\"empty\\">Không có hồ sơ nào.</div>";\n' +
+'    else{\n' +
+'      html+="<div class=\\"tbl-wrap\\"><table class=\\"tbl\\"><thead><tr><th>Mã HS</th><th>Nội dung</th><th>Trạng thái</th><th>%</th><th>CB</th><th>Deadline</th><th>HT</th></tr></thead><tbody>";\n' +
+'      d.hs.forEach(function(r){\n' +
+'        html+="<tr data-hs-id=\\""+esc(r.ma||r.nd)+"\\" style=\\"cursor:pointer\\">";\n' +
+'        html+="<td><b style=\\"color:#60A5FA\\">"+esc(r.ma||"")+"</b></td>";\n' +
+'        html+="<td style=\\"max-width:340px;font-size:12px\\">"+esc(r.nd||"")+"</td>";\n' +
+'        html+="<td><span class=\\"pill blue\\">"+esc(r.tt||"-")+"</span></td>";\n' +
+'        html+="<td class=\\"num\\">"+(r.pct\!==null && r.pct\!==undefined?r.pct+"%":"-")+"</td>";\n' +
+'        html+="<td style=\\"font-size:12px\\">"+esc(r.cb||"")+"</td>";\n' +
+'        html+="<td style=\\"font-size:11px\\">"+esc(r.dl||"")+"</td>";\n' +
+'        html+="<td>"+(r.ht?"✓":"⏳")+"</td></tr>";\n' +
+'      });\n' +
+'      html+="</tbody></table></div>";\n' +
+'    }\n' +
+'    html+="</div>";\n' +
+/* VT */
+'    html+="<div class=\\"khoa-modal-section\\"><h3>🧪 Vật tư / Hóa chất <span class=\\"count\\">"+(d.vt||[]).length+"</span></h3>";\n' +
+'    if(\!(d.vt||[]).length)html+="<div class=\\"empty\\">Không có task vật tư.</div>";\n' +
+'    else{\n' +
+'      html+="<div class=\\"tbl-wrap\\"><table class=\\"tbl\\"><thead><tr><th>Loại</th><th>Trạng thái</th><th>%</th><th>CB</th><th>Deadline</th></tr></thead><tbody>";\n' +
+'      d.vt.forEach(function(r){\n' +
+'        html+="<tr data-vt-id=\\""+esc(r.loai)+"\\" style=\\"cursor:pointer\\">";\n' +
+'        html+="<td><b>"+esc(r.loai||"")+"</b></td>";\n' +
+'        html+="<td>"+esc(r.tt||"-")+"</td>";\n' +
+'        html+="<td class=\\"num\\">"+(r.pct\!==null && r.pct\!==undefined?r.pct+"%":"-")+"</td>";\n' +
+'        html+="<td style=\\"font-size:12px\\">"+esc(r.cb||"")+"</td>";\n' +
+'        html+="<td style=\\"font-size:11px\\">"+esc(r.dl||"")+"</td></tr>";\n' +
+'      });\n' +
+'      html+="</tbody></table></div>";\n' +
+'    }\n' +
+'    html+="</div>";\n' +
+/* Kho */
+'    html+="<div class=\\"khoa-modal-section\\"><h3>📦 Yêu cầu kho <span class=\\"count\\">"+(d.kho||[]).length+"</span></h3>";\n' +
+'    if(\!(d.kho||[]).length)html+="<div class=\\"empty\\">Không có YC kho.</div>";\n' +
+'    else{\n' +
+'      html+="<div class=\\"tbl-wrap\\"><table class=\\"tbl\\"><thead><tr><th>Ngày YC</th><th>VTTH</th><th>SL</th><th>Ưu tiên</th><th>Trạng thái</th></tr></thead><tbody>";\n' +
+'      d.kho.forEach(function(r){\n' +
+'        var pillUT=r.ut && r.ut.indexOf("CAO")>=0?"red":"gray";\n' +
+'        html+="<tr><td style=\\"font-size:11px\\">"+esc(r.ngay||"")+"</td>";\n' +
+'        html+="<td><b>"+esc(r.vtth||"")+"</b></td>";\n' +
+'        html+="<td class=\\"num\\">"+esc(r.sl||"")+"</td>";\n' +
+'        html+="<td><span class=\\"pill "+pillUT+"\\">"+esc(r.ut||"-")+"</span></td>";\n' +
+'        html+="<td>"+esc(r.tt||"")+"</td></tr>";\n' +
+'      });\n' +
+'      html+="</tbody></table></div>";\n' +
+'    }\n' +
+'    html+="</div>";\n' +
+'    if(\!(d.kt||[]).length && \!(d.hs||[]).length && \!(d.vt||[]).length && \!(d.kho||[]).length){\n' +
+'      html+="<div class=\\"empty\\" style=\\"margin-top:14px\\">✓ Khoa "+esc(khoaName)+" hiện không có vấn đề nào — tốt\!</div>";\n' +
+'    }\n' +
+'    html+="</div>";\n' +
+'    $("#modal-body").innerHTML=html;\n' +
+'    $("#modal-meta").innerHTML="<div class=\\"row-info\\"><div><strong>Tip:</strong> Click vào hàng máy/hồ sơ/vật tư để mở chi tiết 360°.</div></div>";\n' +
+'    $$("#modal-body tr[data-kt-id]").forEach(function(tr){tr.onclick=function(){openDetail("KT",tr.dataset.ktId);};});\n' +
+'    $$("#modal-body tr[data-hs-id]").forEach(function(tr){tr.onclick=function(){openDetail("HS",tr.dataset.hsId);};});\n' +
+'    $$("#modal-body tr[data-vt-id]").forEach(function(tr){tr.onclick=function(){openDetail("VT",tr.dataset.vtId);};});\n' +
+'  }).withFailureHandler(function(err){$("#modal-body").innerHTML="<div class=\\"error\\" style=\\"margin:20px\\">⚠ Lỗi tải khoa: "+esc(err && err.message || err)+"</div>";}).getByKhoa(khoaName);\n' +
+'}\n' +
+/* v2.4 — Smart in-app row click router */
+'function openInApp(el){\n' +
+'  if(\!el)return;\n' +
+'  var d=el.dataset;\n' +
+'  if(d.type && d.id){openDetail(d.type,d.id);return;}\n' +
+'  if(d.tab && d.row){openGenericRow(d.tab,d.gid,d.row,d.title||d.tab);return;}\n' +
+'  if(d.gid && d.row){\n' +
+'    /* legacy fallback — use overview tab name as best guess (kho 5A/5B handled elsewhere) */\n' +
+'    openGenericRow("",d.gid,d.row,"Hàng");\n' +
+'  }\n' +
+'}\n' +
 /* v2.3 — Search bar */
 '(function(){var t,inp=$("#search"),box=$("#search-results");\n' +
 '  if(\!inp)return;\n' +
@@ -2255,7 +2456,10 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '  else{\n' +
 '    html += "<div class=\\"hot-grid\\">";\n' +
 '    d.hot.forEach(function(h,i){\n' +
-'      html += "<div class=\\"hot\\" data-gid=\\""+(h.gid||"")+"\\" data-row=\\""+(h.sheetRow||"")+"\\">";\n' +
+'      var hotAttrs="";\n' +
+'      if(h.linkType && h.linkId){hotAttrs=" data-type=\\""+esc(h.linkType)+"\\" data-id=\\""+esc(h.linkId)+"\\" data-tab=\\""+esc(h.linkTab||"")+"\\"";}\n' +
+'      else if(h.linkTab){hotAttrs=" data-tab=\\""+esc(h.linkTab)+"\\" data-title=\\""+esc(h.linkTitle||h.title||"Hàng")+"\\"";}\n' +
+'      html += "<div class=\\"hot\\""+hotAttrs+" data-gid=\\""+(h.gid||"")+"\\" data-row=\\""+(h.sheetRow||"")+"\\">";\n' +
 '      html += "<div class=\\"hot-num\\">"+(i+1)+"</div>";\n' +
 '      html += "<div class=\\"hot-content\\">";\n' +
 '      html += "<div class=\\"hot-title\\"><span class=\\"hot-team\\">"+esc(h.team)+"</span>"+esc(h.title)+"</div>";\n' +
@@ -2268,12 +2472,9 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    html += "</div>";\n' +
 '  }\n' +
 '  $("#view-overview").innerHTML = html;\n' +
-'  // Bind clicks\n' +
-'  $$("#view-overview .hot").forEach(function(el){el.onclick=function(){openRow(el.dataset.gid,el.dataset.row);};});\n' +
-'  $$("#view-overview .bar[data-khoa]").forEach(function(el){el.onclick=function(){\n' +
-'    document.querySelector("#tabs button[data-view=khoa]").click();\n' +
-'    setTimeout(function(){var sel=$("#khoa-select");if(sel){sel.value=el.dataset.khoa;sel.dispatchEvent(new Event("change"));}},300);\n' +
-'  };});\n' +
+'  // Bind clicks (v2.4: in-app modal everywhere, không redirect Sheet)\n' +
+'  $$("#view-overview .hot").forEach(function(el){el.onclick=function(){openInApp(el);};});\n' +
+'  $$("#view-overview .bar[data-khoa]").forEach(function(el){el.onclick=function(){openKhoaModal(el.dataset.khoa);};});\n' +
 '}\n' +
 /* Render KT */
 'function renderKT(d){\n' +
@@ -2323,7 +2524,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '      var pillU = r.ut.toLowerCase().indexOf("cao")>=0 ? "red" : "gray";\n' +
 '      var dl = r.dl + (r.tre ? " <span class=\\"tre-badge\\">Trễ "+r.tre+"n</span>" : "");\n' +
 '      var ten = (r.ht?"✓ ":"") + esc(r.ten);\n' +
-'      return "<tr data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">"+\n' +
+'      return "<tr data-type=\\"KT\\" data-id=\\""+esc(r.ten)+"\\" data-tab=\\""+esc(TAB_NAME.KT)+"\\" data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">"+\n' +
 '        "<td><b>"+ten+"</b><div style=\\"font-size:11px;color:#6B7280;\\">"+esc(r.info)+"</div></td>"+\n' +
 '        "<td>"+esc(r.khoa)+"</td>"+\n' +
 '        "<td style=\\"font-size:11px\\">"+esc(r.coso)+"</td>"+\n' +
@@ -2337,7 +2538,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '        "</tr>";\n' +
 '    }).join("");\n' +
 '    $("#kt-count").textContent = rows.length+" máy";\n' +
-'    $$("#kt-table tbody tr").forEach(function(tr){tr.onclick=function(){openRow(tr.dataset.gid,tr.dataset.row);};});\n' +
+'    $$("#kt-table tbody tr").forEach(function(tr){tr.onclick=function(){openInApp(tr);};});\n' +
 '  }\n' +
 '  ["#f-search","#f-coso","#f-khoa","#f-tinh","#f-ut","#f-hide-thanhly","#f-hide-done"].forEach(function(s){var el=$(s);if(el)el.oninput=el.onchange=applyKT;});\n' +
 '  applyKT();\n' +
@@ -2353,7 +2554,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    d.pipeline.forEach(function(col){\n' +
 '      html += "<div class=\\"col\\"><div class=\\"col-head\\">"+esc(col.name)+"<span class=\\"col-count\\">"+col.count+"</span></div><div class=\\"col-body\\">";\n' +
 '      col.items.forEach(function(it){\n' +
-'        html += "<div class=\\"kanban-card\\" data-gid=\\""+it.gid+"\\" data-row=\\""+it.idx+"\\">";\n' +
+'        html += "<div class=\\"kanban-card\\" data-type=\\"HS\\" data-id=\\""+esc(it.ma||it.nd)+"\\" data-tab=\\""+esc(TAB_NAME.HS)+"\\" data-gid=\\""+it.gid+"\\" data-row=\\""+it.idx+"\\">";\n' +
 '        if(it.ma)html += "<div class=\\"ma\\">"+esc(it.ma)+"</div>";\n' +
 '        html += "<div class=\\"nd\\">"+esc(it.nd.length>100?it.nd.substring(0,100)+"…":it.nd)+"</div>";\n' +
 '        html += "<div class=\\"meta\\">";\n' +
@@ -2376,7 +2577,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    html += "<div class=\\"tbl-wrap\\"><table class=\\"tbl\\"><thead><tr><th>Mã HS</th><th>Nội dung</th><th>Khoa</th><th>Trạng thái</th><th>Vướng mắc</th><th>CB</th><th>Deadline</th></tr></thead><tbody>";\n' +
 '    stuck.forEach(function(r){\n' +
 '      var dl = r.dl + (r.tre?" <span class=\\"tre-badge\\">Trễ "+r.tre+"n</span>":"");\n' +
-'      html += "<tr data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
+'      html += "<tr data-type=\\"HS\\" data-id=\\""+esc(r.ma||r.nd)+"\\" data-tab=\\""+esc(TAB_NAME.HS)+"\\" data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
 '      html += "<td><b style=\\"color:#60A5FA\\">"+esc(r.ma)+"</b></td>";\n' +
 '      html += "<td style=\\"max-width:280px;font-size:12px;\\">"+esc(r.nd)+"</td>";\n' +
 '      html += "<td>"+esc(r.khoa)+"</td>";\n' +
@@ -2388,7 +2589,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    html += "</tbody></table></div>";\n' +
 '  }\n' +
 '  $("#view-hs").innerHTML = html;\n' +
-'  $$("#view-hs .kanban-card, #view-hs tbody tr").forEach(function(el){el.onclick=function(){openRow(el.dataset.gid,el.dataset.row);};});\n' +
+'  $$("#view-hs .kanban-card, #view-hs tbody tr").forEach(function(el){el.onclick=function(){openInApp(el);};});\n' +
 '}\n' +
 /* Render VTTH */
 'function renderVT(d){\n' +
@@ -2407,7 +2608,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '      var dl = r.dl + (r.tre?" <span class=\\"tre-badge\\">Trễ "+r.tre+"n</span>":"");\n' +
 '      var pillU = r.ut.toLowerCase().indexOf("cao")>=0?"red":"gray";\n' +
 '      var pct = r.pct!==null?(r.pct+"%"):"-";\n' +
-'      html += "<tr data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
+'      html += "<tr data-type=\\"VT\\" data-id=\\""+esc(r.loai)+"\\" data-tab=\\""+esc(TAB_NAME.VT)+"\\" data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
 '      html += "<td style=\\"max-width:280px\\"><b>"+esc(r.loai)+"</b></td>";\n' +
 '      html += "<td>"+esc(r.khoa)+"</td>";\n' +
 '      html += "<td style=\\"font-size:11px\\">"+esc(r.coso)+"</td>";\n' +
@@ -2422,7 +2623,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    html += "</tbody></table></div>";\n' +
 '  }\n' +
 '  $("#view-vt").innerHTML = html;\n' +
-'  $$("#view-vt tbody tr").forEach(function(tr){tr.onclick=function(){openRow(tr.dataset.gid,tr.dataset.row);};});\n' +
+'  $$("#view-vt tbody tr").forEach(function(tr){tr.onclick=function(){openInApp(tr);};});\n' +
 '}\n' +
 /* Render Kho */
 'function renderKho(d){\n' +
@@ -2435,7 +2636,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '      var pill = r.tt.indexOf("ĐỎ")>=0?"red":r.tt.indexOf("VÀNG")>=0?"yellow":r.tt.indexOf("XANH")>=0?"green":"gray";\n' +
 '      var dohTxt = r.doh!==null && r.doh!==undefined ? r.doh + " ngày" : "-";\n' +
 '      var dohClass = r.doh!==null && r.doh<=3 ? "color:#EF4444;font-weight:700" : r.doh!==null && r.doh<=7 ? "color:#F59E0B;font-weight:600" : "";\n' +
-'      html += "<tr data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
+'      html += "<tr data-tab=\\""+esc(TAB_NAME.KHO_5A)+"\\" data-title=\\""+esc(r.ten||"Hàng kho 5A")+"\\" data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
 '      html += "<td style=\\"font-size:11px;color:#60A5FA\\">"+esc(r.ma)+"</td>";\n' +
 '      html += "<td><b>"+esc(r.ten)+"</b></td>";\n' +
 '      html += "<td style=\\"font-size:11px\\">"+esc(r.loai)+"</td>";\n' +
@@ -2458,7 +2659,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    d.dexuat.forEach(function(r){\n' +
 '      var pillUT = r.ut.indexOf("CAO")>=0?"red":"gray";\n' +
 '      var pillTT = r.tt==="Đã cấp đủ"?"green":r.tt==="Chờ tiếp nhận"?"yellow":r.tt==="Đang xử lý"?"blue":"gray";\n' +
-'      html += "<tr data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
+'      html += "<tr data-tab=\\""+esc(TAB_NAME.KHO_5B)+"\\" data-title=\\""+esc(r.vtth||"Đề xuất 5B")+"\\" data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
 '      html += "<td style=\\"font-size:11px\\">"+esc(r.ngay)+"</td>";\n' +
 '      html += "<td>"+esc(r.khoa)+"</td>";\n' +
 '      html += "<td style=\\"font-size:12px\\">"+esc(r.nguoi)+"</td>";\n' +
@@ -2472,24 +2673,32 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    html += "</tbody></table></div>";\n' +
 '  }\n' +
 '  $("#view-kho").innerHTML = html;\n' +
-'  $$("#view-kho tbody tr").forEach(function(tr){tr.onclick=function(){openRow(tr.dataset.gid,tr.dataset.row);};});\n' +
+'  $$("#view-kho tbody tr").forEach(function(tr){tr.onclick=function(){openInApp(tr);};});\n' +
 '}\n' +
 /* Render Theo Khoa */
 'function renderKhoaList(d){\n' +
+'  if(d && d.error){$("#view-khoa").innerHTML="<div class=\\"error\\">⚠ "+esc(d.error)+"</div>";return;}\n' +
+'  var list=(d && d.khoaList)||[];\n' +
 '  var html = "<div class=\\"filters\\"><label style=\\"color:#9CA3AF\\">Chọn khoa:</label>";\n' +
 '  html += "<select id=\\"khoa-select\\" style=\\"min-width:340px\\"><option value=\\"\\">— Chọn khoa —</option>";\n' +
-'  d.khoaList.forEach(function(k){html += "<option>"+esc(k)+"</option>";});\n' +
-'  html += "</select></div>";\n' +
-'  html += "<div id=\\"khoa-detail\\"><div class=\\"empty\\">👆 Chọn khoa ở trên để xem toàn bộ vấn đề (kỹ thuật + hồ sơ + vật tư + kho) liên quan đến khoa đó.</div></div>";\n' +
+'  list.forEach(function(k){html += "<option>"+esc(k)+"</option>";});\n' +
+'  html += "</select>";\n' +
+'  html += "<span class=\\"badge\\" style=\\"background:#374151;color:#D1D5DB\\">"+list.length+" khoa</span>";\n' +
+'  html += "</div>";\n' +
+'  html += "<div id=\\"khoa-detail\\"><div class=\\"empty\\">👆 Chọn khoa ở trên để xem toàn cảnh các vấn đề (kỹ thuật + hồ sơ + vật tư + kho).<br><br>Hoặc về tab <b>Tổng quan</b> → click thẳng vào 1 thanh trong biểu đồ \\"Khoa nào đang nhiều vấn đề nhất\\" để mở popup khoa 360°.</div></div>";\n' +
 '  $("#view-khoa").innerHTML = html;\n' +
 '  $("#khoa-select").onchange = function(){\n' +
 '    var k = this.value;\n' +
-'    if(!k){$("#khoa-detail").innerHTML="<div class=\\"empty\\">Chưa chọn khoa.</div>";return;}\n' +
+'    if(\!k){$("#khoa-detail").innerHTML="<div class=\\"empty\\">Chưa chọn khoa.</div>";return;}\n' +
 '    $("#khoa-detail").innerHTML = "<div class=\\"loading\\">Đang tải dữ liệu khoa "+esc(k)+"…</div>";\n' +
-'    google.script.run.withSuccessHandler(renderKhoaDetail).withFailureHandler(showErr).getByKhoa(k);\n' +
+'    var done=false;\n' +
+'    setTimeout(function(){if(\!done)$("#khoa-detail").innerHTML="<div class=\\"error\\">⚠ Quá 20s không có phản hồi. Refresh trang (Ctrl+F5) hoặc mở console (F12) xem lỗi.</div>";},20000);\n' +
+'    google.script.run.withSuccessHandler(function(d){done=true;renderKhoaDetail(d);}).withFailureHandler(function(e){done=true;$("#khoa-detail").innerHTML="<div class=\\"error\\">⚠ Lỗi tải khoa: "+esc(e && e.message || e)+"</div>";}).getByKhoa(k);\n' +
 '  };\n' +
 '}\n' +
 'function renderKhoaDetail(d){\n' +
+'  if(d && d.error){$("#khoa-detail").innerHTML="<div class=\\"error\\">⚠ "+esc(d.error)+"</div>";return;}\n' +
+'  if(\!d || \!d.summary){$("#khoa-detail").innerHTML="<div class=\\"error\\">⚠ Server trả dữ liệu rỗng.</div>";return;}\n' +
 '  var s = d.summary;\n' +
 '  var html = "<div class=\\"sh\\">🏥 Khoa: "+esc(d.khoa)+"</div>";\n' +
 '  html += "<div class=\\"khoa-summary\\">";\n' +
@@ -2503,8 +2712,8 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    html += "<div class=\\"sh\\">🔧 Máy của khoa</div>";\n' +
 '    html += "<div class=\\"tbl-wrap\\"><table class=\\"tbl\\"><thead><tr><th>Tên máy</th><th>Tình trạng</th><th>Chi tiết</th><th>CB</th><th>Bước</th><th>Deadline</th><th>HT</th></tr></thead><tbody>";\n' +
 '    d.kt.forEach(function(r){\n' +
-'      var pill = r.tinh.toLowerCase().indexOf("đang sửa")>=0?"yellow":r.tinh.toLowerCase().indexOf("thanh lý")>=0?"gray":"blue";\n' +
-'      html += "<tr data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
+'      var pill = (r.tinh||"").toLowerCase().indexOf("đang sửa")>=0?"yellow":(r.tinh||"").toLowerCase().indexOf("thanh lý")>=0?"gray":"blue";\n' +
+'      html += "<tr data-type=\\"KT\\" data-id=\\""+esc(r.ten)+"\\" data-tab=\\""+esc(TAB_NAME.KT)+"\\" data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
 '      html += "<td><b>"+esc(r.ten)+"</b></td>";\n' +
 '      html += "<td><span class=\\"pill "+pill+"\\">"+esc(r.tinh)+"</span></td>";\n' +
 '      html += "<td style=\\"max-width:300px;font-size:12px\\">"+esc(r.ct)+"</td>";\n' +
@@ -2520,7 +2729,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    html += "<div class=\\"sh\\">📁 Gói thầu / hồ sơ của khoa</div>";\n' +
 '    html += "<div class=\\"tbl-wrap\\"><table class=\\"tbl\\"><thead><tr><th>Mã HS</th><th>Nội dung</th><th>Trạng thái</th><th>%</th><th>CB</th><th>Deadline</th><th>HT</th></tr></thead><tbody>";\n' +
 '    d.hs.forEach(function(r){\n' +
-'      html += "<tr data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
+'      html += "<tr data-type=\\"HS\\" data-id=\\""+esc(r.ma||r.nd)+"\\" data-tab=\\""+esc(TAB_NAME.HS)+"\\" data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
 '      html += "<td><b style=\\"color:#60A5FA\\">"+esc(r.ma)+"</b></td>";\n' +
 '      html += "<td style=\\"max-width:340px;font-size:12px\\">"+esc(r.nd)+"</td>";\n' +
 '      html += "<td><span class=\\"pill blue\\">"+esc(r.tt)+"</span></td>";\n' +
@@ -2536,7 +2745,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    html += "<div class=\\"sh\\">🧪 Task VTTH liên quan</div>";\n' +
 '    html += "<div class=\\"tbl-wrap\\"><table class=\\"tbl\\"><thead><tr><th>Loại</th><th>Trạng thái</th><th>%</th><th>CB</th><th>Deadline</th></tr></thead><tbody>";\n' +
 '    d.vt.forEach(function(r){\n' +
-'      html += "<tr data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
+'      html += "<tr data-type=\\"VT\\" data-id=\\""+esc(r.loai)+"\\" data-tab=\\""+esc(TAB_NAME.VT)+"\\" data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
 '      html += "<td><b>"+esc(r.loai)+"</b></td>";\n' +
 '      html += "<td>"+esc(r.tt)+"</td>";\n' +
 '      html += "<td class=\\"num\\">"+(r.pct!==null?r.pct+"%":"-")+"</td>";\n' +
@@ -2550,8 +2759,8 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    html += "<div class=\\"sh\\">📦 Yêu cầu kho của khoa</div>";\n' +
 '    html += "<div class=\\"tbl-wrap\\"><table class=\\"tbl\\"><thead><tr><th>Ngày YC</th><th>VTTH</th><th>SL</th><th>Ưu tiên</th><th>Trạng thái</th></tr></thead><tbody>";\n' +
 '    d.kho.forEach(function(r){\n' +
-'      var pillUT = r.ut.indexOf("CAO")>=0?"red":"gray";\n' +
-'      html += "<tr data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
+'      var pillUT = (r.ut||"").indexOf("CAO")>=0?"red":"gray";\n' +
+'      html += "<tr data-tab=\\""+esc(TAB_NAME.KHO_5B)+"\\" data-title=\\""+esc(r.vtth||"YC kho")+"\\" data-gid=\\""+r.gid+"\\" data-row=\\""+r.idx+"\\">";\n' +
 '      html += "<td style=\\"font-size:11px\\">"+esc(r.ngay)+"</td>";\n' +
 '      html += "<td><b>"+esc(r.vtth)+"</b></td>";\n' +
 '      html += "<td class=\\"num\\">"+esc(r.sl)+"</td>";\n' +
@@ -2564,7 +2773,7 @@ const DASHBOARD_HTML = '<!DOCTYPE html>\n<html lang="vi"><head><meta charset="ut
 '    html += "<div class=\\"empty\\">Khoa này không có vấn đề nào — tốt!</div>";\n' +
 '  }\n' +
 '  $("#khoa-detail").innerHTML = html;\n' +
-'  $$("#khoa-detail tbody tr").forEach(function(tr){if(tr.dataset.gid)tr.onclick=function(){openRow(tr.dataset.gid,tr.dataset.row);};});\n' +
+'  $$("#khoa-detail tbody tr").forEach(function(tr){if(tr.dataset.gid)tr.onclick=function(){openInApp(tr);};});\n' +
 '}\n' +
 /* Loaders */
 'function showErr(err){var s=$("#view-"+STATE.currentView);if(s)s.innerHTML="<div class=\\"error\\">⚠️ Lỗi tải dữ liệu: "+esc(err && err.message || err)+"</div>";}\n' +
