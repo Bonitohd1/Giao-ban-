@@ -47,7 +47,8 @@
 ```
 .
 ├── HANDOFF.md                     # ⭐ ĐỌC TRƯỚC
-├── CLAUDE.md                      # File này
+├── CLAUDE.md                      # Tóm tắt hệ thống (File này)
+├── AGENTS.md                      # ⭐ QUY TẮC ĐỒNG BỘ CÁC AI AGENT (Bắt buộc)
 ├── README.md                      # Cho người xem GitHub
 ├── AppScript_v2_3.gs              # ⭐ CURRENT
 ├── AppScript_v2_2.gs              # rollback gần
@@ -56,5 +57,5 @@
 ├── HuongDan_Deploy_WebApp_v2_2.md # deploy guide cũ
 ├── BaoCaoGiaoBan_v2.xlsx          # template Excel (deprecated)
 ├── HuongDan_ThucThi.docx          # tài liệu nội bộ ban đầu
-└── docs/                          # tài liệu phụ
+└── docs/                          # tài liệu phụ (PRD, SESSION_LOGS)
 ```
