@@ -1,0 +1,36 @@
+# Office temp lock files
+~$*
+*.tmp
+*.bak
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local environment / secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Logs
+*.log
+
+# Node (if scripts use it)
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Apps Script local clasp (nếu sau dùng)
+.clasprc.json
+.clasp.json
