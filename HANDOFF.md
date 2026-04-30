@@ -65,7 +65,8 @@
 |---|---|---|---|
 | v2.0 | `AppScript_v2.gs` | ❌ deprecated | Bản đầu tiên, không có Web App |
 | v2.1 | `AppScript_v2_1.gs` | ❌ deprecated | Có Web App nhưng số liệu sai vì hardcode vị trí cột; chỉ 1 màn, không click drill-down |
-| **v2.2** | **`AppScript_v2_2.gs`** | ✅ **CURRENT** | Header-based column lookup; 6 view drill-down; click-to-Sheet deep link |
+| v2.2 | `AppScript_v2_2.gs` | 🟡 stable rollback | Header-based column lookup; 6 view drill-down; click-to-Sheet deep link |
+| **v2.3** | **`AppScript_v2_3.gs`** | ✅ **CURRENT** | Liên kết chéo KT↔VT↔HS — junction table `MAP_LIENKET`, modal 360° drill-down, global search, smart fuzzy matching, top 20 chuỗi vướng mắc trên nav 🔗 Liên kết. Bootstrap tự thêm cột Mã KT/Mã VT/Liên kết HS/Liên kết VT/Liên kết KT vào 4 tab gốc (idempotent). |
 
 **Quy ước:** Bản mới luôn KEEP file cũ (đừng xóa) để rollback. Đặt tên `AppScript_vX_Y.gs` + `HuongDan_Deploy_WebApp_vX_Y.md` đi kèm.
 
@@ -196,12 +197,26 @@ User feedback → Đọc HANDOFF.md (nếu chưa) → Hiểu mục tiêu cốt l
 
 ## 9. Tình trạng hiện tại (snapshot tại điểm handoff)
 
-- ✅ v2.2 đã code xong, syntax OK (`node --check` pass), copy về Desktop.
-- ✅ Hướng dẫn deploy v2.2 đã viết.
+- ✅ v2.3 đã code xong, syntax OK (`node --check` pass), copy về Desktop (~131 KB, ~2400 dòng).
+- ✅ Hướng dẫn deploy v2.3 đã viết: `HuongDan_Deploy_WebApp_v2_3.md`.
 - ✅ Repo Git config sẵn — remote = https://github.com/Bonitohd1/Giao-ban-.git
 - ⏳ Chờ user double-click `setup-git.bat` để push lần đầu (sandbox không có credentials GitHub).
-- ⏳ Chờ user dán code v2.2 vào Apps Script + Deploy New version.
-- ⏳ Chờ user verify 6 view chạy đúng với data thật.
+- ⏳ Chờ user dán code v2.3 vào Apps Script + chạy menu **Giao ban → 🔗 Bootstrap Links v2.3** + Deploy New version.
+- ⏳ Chờ user điền mã liên kết thực tế vào tab `MAP_LIENKET` (hoặc cột Liên kết trong từng tab) để chuỗi KT→VT→HS hiện ra trên Web App.
+- ⏳ Chờ user verify 7 view (6 view cũ + 🔗 Liên kết) chạy đúng với data thật.
+
+### Bộ API mới của v2.3 (cho AI session sau biết)
+
+| Endpoint | Trả về | Dùng ở |
+|---|---|---|
+| `getDetail(type, id)` | entity + related KT/VT/HS (3-col modal data) | Modal 360° khi click bất kỳ mã nào |
+| `searchAll(q)` | top 8 results across 4 tabs | Search bar typeahead |
+| `getLinkedChains()` | top 20 chuỗi vướng mắc, sort theo severity | Nav 🔗 Liên kết |
+| `bootstrapLinks()` | (menu action) thêm cột Mã + Liên kết, tạo MAP_LIENKET | Menu **Giao ban** trong Sheet |
+
+### Junction table `MAP_LIENKET`
+
+Cấu trúc: `KT_ID | HS_ID | VT_ID | Loại quan hệ | Ghi chú | Ngày tạo`. Ưu tiên cao nhất khi build chain — code đọc cả MAP_LIENKET lẫn cột "Liên kết X" trong 4 tab gốc, hợp nhất, dedupe theo cặp `(type1:id1, type2:id2)`.
 
 **Cách push lần đầu / push sau khi sửa:**
 1. Double-click `setup-git.bat` (hoặc chuột phải `setup-git.ps1` → Run with PowerShell).
@@ -234,4 +249,4 @@ User là **trưởng phòng**. Email cho user trong Web App đang gửi từ `du
 ---
 
 **Tóm tắt 1 câu cho AI mới:**
-> Đây là Web App Apps Script hiển thị dashboard giao ban cho 1 trưởng phòng VT-TBYT bệnh viện. Code hiện tại là `AppScript_v2_2.gs`. Quy tắc vàng: header-based column lookup, click-to-Sheet, dark theme, KHÔNG hardcode cột.
+> Đây là Web App Apps Script hiển thị dashboard giao ban cho 1 trưởng phòng VT-TBYT bệnh viện. Code hiện tại là `AppScript_v2_3.gs` (liên kết chéo KT↔VT↔HS qua junction table + modal 360°). Quy tắc vàng: header-based column lookup, click-to-Sheet, dark theme, KHÔNG hardcode cột, bootstrap idempotent.

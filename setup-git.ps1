@@ -36,7 +36,7 @@ git add -A
 git diff --cached --quiet
 if ($LASTEXITCODE -ne 0) {
     Write-Host "=== Commit..." -ForegroundColor Cyan
-    git commit -m "Snapshot: Giao ban v2.2 - dashboard drill-down 6 view"
+    git commit -m "v2.3: lien ket cheo KT-VT-HS + modal 360 + global search"
 } else {
     Write-Host "=== Không có thay đổi để commit" -ForegroundColor Yellow
 }
