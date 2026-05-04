@@ -67,7 +67,13 @@
 | v2.1 | `AppScript_v2_1.gs` | ❌ deprecated | Có Web App nhưng số liệu sai vì hardcode vị trí cột; chỉ 1 màn, không click drill-down |
 | v2.2 | `AppScript_v2_2.gs` | 🟡 stable rollback | Header-based column lookup; 6 view drill-down; click-to-Sheet deep link |
 | **v2.3** | `AppScript_v2_3.gs` | ❌ deprecated | Bản nâng cấp liên kết chéo, modal 360°, nhưng có lỗi khi data không đồng nhất khiến Web App không load được. |
-| **v2.4** | **`AppScript_v2_4.gs`** | ✅ **CURRENT** | **Fix lỗi load dữ liệu**: Bổ sung kiểm tra null/undefined và normalize dữ liệu đầu vào. **Tối ưu Deep Link**: Hot Issues card giờ đây có thể click mở đúng dòng Sheet. Cập nhật CSS/JS frontend để ổn định hơn khi render. |
+| v2.4 | `AppScript_v2_4.gs` | 🟡 stable rollback | Fix lỗi load dữ liệu (null/undefined), tối ưu Deep Link cho Hot Issues. |
+| **v2.5** | **`AppScript_v2_5.gs`** | 🟡 stable rollback | **Liên kết Kho ↔ VT ↔ HS**: (1) Modal HS đính thẻ Kho 5A + queue 5B; (2) Tab VTTH thêm cột 📦 Kho; (3) Tab Kho 5A click expand inline; (4) `getKho()` enrich rows. |
+| v2.6 | `AppScript_v2_6.gs` | 🟡 stable rollback | Lazy-load & Cache Layer: CacheService 5 min, lazy-load tab Kho, modal VT relatedKho, nút Refresh, warmCache trigger. |
+| v2.7 | `AppScript_v2_7.gs` | 🟡 stable rollback | KPI redesign + Multi-cơ sở khoa. |
+| v2.8 | `AppScript_v2_8.gs` | 🟡 stable rollback | Performance Indexing O(N) + Detail 360°. |
+| v2.9 | `AppScript_v2_9.gs` | 🟡 stable rollback | Phase B: Tab Báo cáo (Hub báo cáo tập trung). |
+| **v2.10** | **`AppScript_v2_10.gs`** | ✅ **CURRENT** | **Maintenance & Integration**: (1) Thêm 5 cột theo dõi Bảo trì/Bảo hành; (2) Liên kết máy hỏng ↔ Gói thầu bảo trì (HS); (3) Dự báo rủi ro bảo trì & Cảnh báo chưa có gói thầu; (4) Báo cáo chi tiết theo nhóm cho Tuần/Tháng. ~5300 dòng, 320 KB. |
 
 **Quy ước:** Bản mới luôn KEEP file cũ (đừng xóa) để rollback. Đặt tên `AppScript_vX_Y.gs` + `HuongDan_Deploy_WebApp_vX_Y.md` đi kèm.
 
@@ -198,13 +204,10 @@ User feedback → Đọc HANDOFF.md (nếu chưa) → Hiểu mục tiêu cốt l
 
 ## 9. Tình trạng hiện tại (snapshot tại điểm handoff)
 
-- ✅ v2.4 đã code xong, sửa lỗi không load dữ liệu thành công (~156 KB, ~2800 dòng).
-- ✅ Hướng dẫn deploy v2.3 vẫn áp dụng được cho v2.4 (chỉ thay code).
-- ✅ Repo Git đã sẵn sàng để push.
-- ⏳ Chờ user dán code v2.4 vào Apps Script và Deploy New version.
-- ⏳ Chờ user verify lại tính năng Deep Link trên các card Hot Issues.
-- ⏳ Chờ user điền mã liên kết thực tế vào tab `MAP_LIENKET` (hoặc cột Liên kết trong từng tab) để chuỗi KT→VT→HS hiện ra trên Web App.
-- ⏳ Chờ user verify 7 view (6 view cũ + 🔗 Liên kết) chạy đúng với data thật.
+- ✅ **Phiên bản hiện tại: `AppScript_v2_10.gs` (~5300 dòng, ~320 KB) — **Maintenance & Integration**. Dashboard giờ có hệ thống dự báo bảo hành/bảo trì cho nhóm KT, liên kết trực tiếp với các gói thầu bảo trì ở nhóm HS. Báo cáo chi tiết theo nhóm cho Tuần/Tháng.
+- Web App URL deployed (giữ nguyên qua các bản): user sẽ paste khi cần.
+- ✅ `node --check` pass.
+> **Lesson learned (cho AI sau):** Edit tool có thể truncate file `.gs` lớn (~150KB) khi old_string không đủ unique. Khi sửa nhiều đoạn → dùng Python script atomic. Nếu file đã truncate → recover bằng cách merge tail từ phiên bản cũ (xem patch `tail recovery` ở /tmp).
 
 ### Bộ API mới của v2.3 (cho AI session sau biết)
 
@@ -263,4 +266,4 @@ User là **trưởng phòng**. Email cho user trong Web App đang gửi từ `du
 ---
 
 **Tóm tắt 1 câu cho AI mới:**
-> Đây là Web App Apps Script hiển thị dashboard giao ban cho 1 trưởng phòng VT-TBYT bệnh viện. Code hiện tại là `AppScript_v2_3.gs` (liên kết chéo KT↔VT↔HS↔Kho 5A/5B qua junction table + modal 360°). Quy tắc vàng: header-based column lookup, click-to-Sheet, dark theme, KHÔNG hardcode cột, bootstrap idempotent. Kho không có ID riêng — match với VT qua Mã VTTH/Tên VTTH.
+> Đây là Web App Apps Script hiển thị dashboard giao ban cho 1 trưởng phòng VT-TBYT bệnh viện. Code hiện tại là `AppScript_v2_8.gs` (Performance Indexing O(N), Detail 360° nâng cấp VT/HS, Cache v31). Hệ kế thừa v2.7 KPI cards + v2.6 cache. Quy tắc vàng: header-based column lookup, click-to-Sheet, dark theme, KHÔNG hardcode cột. Kho không có ID riêng — match với VT qua Mã VTTH (primary) hoặc Tên VTTH (fuzzy fallback).

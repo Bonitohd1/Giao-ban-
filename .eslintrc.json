@@ -1,0 +1,25 @@
+{
+  "env": {
+    "es2021": true,
+    "node": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 12
+  },
+  "globals": {
+    "SpreadsheetApp": "readonly",
+    "Logger": "readonly",
+    "HtmlService": "readonly",
+    "Utilities": "readonly",
+    "ScriptApp": "readonly",
+    "MailApp": "readonly",
+    "DriveApp": "readonly",
+    "PropertiesService": "readonly",
+    "CacheService": "readonly",
+    "Session": "readonly"
+  },
+  "rules": {
+    "no-undef": "error",
+    "no-unused-vars": "warn"
+  }
+}
